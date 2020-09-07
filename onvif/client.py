@@ -3,6 +3,7 @@
 import datetime as dt
 import logging
 import os.path
+import urllib
 
 import requests
 from aiohttp import ClientSession
@@ -221,7 +222,7 @@ class ONVIFCamera:
         port,
         user,
         passwd,
-        wsdl_dir=os.path.join(os.path.dirname(os.path.dirname(__file__)), "wsdl"),
+        wsdl_dir=os.path.join(os.path.dirname(os.path.dirname(__file__)), "onvif/wsdl"),
         encrypt=True,
         no_cache=False,
         adjust_time=False,
@@ -279,11 +280,14 @@ class ONVIFCamera:
         """Create a pullpoint subscription."""
         try:
             events = self.create_events_service()
-            pullpoint = await events.CreatePullPointSubscription()
+            pullpoint = await events.CreatePullPointSubscription({"InitialTerminationTime": "PT3H"})
             # pylint: disable=protected-access
+            original = urllib.parse.urlsplit(pullpoint.SubscriptionReference.Address._value_1)
+            # pylint: disable=protected-access
+            replaced = original._replace(netloc=f"{self.host}:{self.port}").geturl()
             self.xaddrs[
                 "http://www.onvif.org/ver10/events/wsdl/PullPointSubscription"
-            ] = pullpoint.SubscriptionReference.Address._value_1
+            ] = replaced
         except Fault:
             return False
         return True
